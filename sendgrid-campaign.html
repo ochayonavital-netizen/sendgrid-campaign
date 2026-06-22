@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>שליחת קמפיין — SendGrid</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f6f2;
+    --surface: #ffffff;
+    --border: #e4e1d8;
+    --border-focus: #1a56db;
+    --text: #111827;
+    --muted: #6b7280;
+    --hint: #9ca3af;
+    --accent: #1a56db;
+    --accent-light: #eff4ff;
+    --success: #065f46;
+    --success-bg: #d1fae5;
+    --error: #991b1b;
+    --error-bg: #fee2e2;
+    --warning: #92400e;
+    --warning-bg: #fef3c7;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  html { font-size: 16px; }
+
+  body {
+    font-family: 'Heebo', 'Arial Hebrew', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+    line-height: 1.6;
+  }
+
+  .page-wrap {
+    max-width: 680px;
+    margin: 0 auto;
+  }
+
+  /* Header */
+  .page-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 2rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo-mark {
+    width: 44px; height: 44px;
+    background: var(--accent);
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .logo-mark svg { width: 22px; height: 22px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .page-header h1 { font-size: 1.2rem; font-weight: 600; color: var(--text); }
+  .page-header p { font-size: 0.8rem; color: var(--muted); margin-top: 1px; }
+
+  /* Loading state */
+  #loading-state {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 2.5rem;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .spinner {
+    width: 28px; height: 28px;
+    border: 2.5px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+    margin: 0 auto 1rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Form card */
+  #form-card {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .form-section {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .form-section:last-child { border-bottom: none; }
+
+  .section-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 1rem;
+  }
+
+  .field-group { display: grid; gap: 12px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  label {
+    display: block;
+    font-size: 0.825rem;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 5px;
+  }
+  label .req { color: var(--accent); margin-right: 2px; }
+
+  input[type="text"],
+  input[type="datetime-local"],
+  select,
+  textarea {
+    width: 100%;
+    padding: 9px 12px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    appearance: none;
+    -webkit-appearance: none;
+    direction: rtl;
+  }
+  input[type="text"]:focus,
+  input[type="datetime-local"]:focus,
+  select:focus,
+  textarea:focus {
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(26,86,219,0.12);
+    background: #fff;
+  }
+
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: left 10px center;
+    padding-left: 32px;
+  }
+
+  textarea { resize: vertical; min-height: 120px; line-height: 1.6; }
+
+  .hint { font-size: 0.75rem; color: var(--hint); margin-top: 4px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+  .tab {
+    padding: 6px 14px;
+    font-size: 0.825rem;
+    font-weight: 500;
+    font-family: inherit;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tab:hover:not(.active) { background: var(--bg); border-color: var(--border-focus); color: var(--text); }
+
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  #preview-box {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px 20px;
+    min-height: 120px;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    background: #fff;
+    color: var(--text);
+  }
+
+  /* Footer actions */
+  .form-footer {
+    padding: 1.25rem 1.5rem;
+    background: var(--bg);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .btn-primary {
+    flex: 1;
+    padding: 11px 20px;
+    font-family: inherit;
+    font-size: 0.925rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-secondary {
+    padding: 11px 16px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    color: var(--muted);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-secondary:hover { background: var(--surface); color: var(--text); }
+
+  /* Status */
+  #status-bar {
+    display: none;
+    margin-top: 1rem;
+    padding: 14px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    border: 1px solid transparent;
+  }
+  #status-bar.success { background: var(--success-bg); color: var(--success); border-color: #6ee7b7; }
+  #status-bar.error   { background: var(--error-bg);   color: var(--error);   border-color: #fca5a5; }
+  #status-bar.info    { background: var(--accent-light); color: var(--accent); border-color: #a5b4fc; }
+
+  /* Error state */
+  #error-state {
+    display: none;
+    background: var(--error-bg);
+    border: 1px solid #fca5a5;
+    border-radius: var(--radius);
+    padding: 2rem;
+    color: var(--error);
+    font-size: 0.875rem;
+    text-align: center;
+  }
+
+  .meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.75rem;
+    background: var(--accent-light);
+    color: var(--accent);
+    border-radius: 100px;
+    padding: 3px 10px;
+    font-weight: 500;
+  }
+
+  @media (max-width: 520px) {
+    .field-row { grid-template-columns: 1fr; }
+    .page-header h1 { font-size: 1rem; }
+  }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <header class="page-header">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </div>
+    <div>
+      <h1>שליחת קמפיין אימייל</h1>
+      <p>SendGrid Single Send — דרך Make.com</p>
+    </div>
+  </header>
+
+  <div id="loading-state">
+    <div class="spinner"></div>
+    טוען רשימות ושולחים מ-SendGrid...
+  </div>
+
+  <div id="error-state">
+    <strong>לא ניתן לטעון נתונים</strong><br>
+    <span id="error-msg"></span><br><br>
+    <button class="btn-secondary" onclick="loadData()">נסה שוב</button>
+  </div>
+
+  <form id="form-card" onsubmit="return false">
+
+    <div class="form-section">
+      <div class="section-label">פרטי הקמפיין</div>
+      <div class="field-group">
+        <div class="field-row">
+          <div>
+            <label for="campaign_name"><span class="req">*</span> שם הקמפיין</label>
+            <input type="text" id="campaign_name" placeholder="ניוזלטר יוני 2026">
+          </div>
+          <div>
+            <label for="subject"><span class="req">*</span> נושא האימייל</label>
+            <input type="text" id="subject" placeholder="הנושא שיופיע בתיבת הדואר">
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div>
+            <label for="list_id">רשימת תפוצה</label>
+            <select id="list_id">
+              <option value="">טוען...</option>
+            </select>
+            <p class="hint" id="list-count"></p>
+          </div>
+          <div>
+            <label for="sender_id">שולח</label>
+            <select id="sender_id">
+              <option value="">טוען...</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label for="send_at"><span class="req">*</span> מועד שליחה</label>
+          <input type="datetime-local" id="send_at">
+          <p class="hint">לשליחה מיידית — בחר 5 דקות מעכשיו לפחות</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-label">תוכן האימייל</div>
+      <div class="tabs">
+        <button type="button" class="tab active" onclick="switchTab('plain')">טקסט רגיל</button>
+        <button type="button" class="tab" onclick="switchTab('html')">HTML</button>
+        <button type="button" class="tab" onclick="switchTab('preview')">תצוגה מקדימה</button>
+      </div>
+
+      <div id="pane-plain" class="tab-pane active">
+        <textarea id="plain_content" placeholder="כתוב כאן את תוכן האימייל בטקסט רגיל.
+הטקסט יוצג למנויים שלא תומכים ב-HTML."></textarea>
+      </div>
+
+      <div id="pane-html" class="tab-pane">
+        <textarea id="html_content" dir="ltr" style="font-family: 'Courier New', monospace; font-size: 0.82rem;" placeholder="<h1>שלום!</h1>&#10;<p>תוכן הניוזלטר שלך כאן...</p>&#10;<a href='{{unsubscribe}}'>הסרה מרשימה</a>"></textarea>
+        <p class="hint">לא חובה — אם ריק, ישמש הטקסט הרגיל</p>
+      </div>
+
+      <div id="pane-preview" class="tab-pane">
+        <div id="preview-box">בחר "תצוגה מקדימה" לאחר כתיבת התוכן</div>
+      </div>
+    </div>
+
+    <div class="form-footer">
+      <button type="submit" class="btn-primary" id="submit-btn" onclick="createCampaign()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        צור ותזמן קמפיין
+      </button>
+      <button type="button" class="btn-secondary" onclick="clearForm()">נקה</button>
+    </div>
+
+  </form>
+
+  <div id="status-bar"></div>
+
+</div>
+
+<script>
+const WEBHOOK = 'https://hook.eu1.make.com/iyygd7metmcbicpcvmc6a58bd6rbiaj6';
+const SG_API  = 'https://api.sendgrid.com/v3';
+
+// ── Replace with your SendGrid API key ──────────────────────────────────────
+// Either hard-code here for a private tool, or load from a server-side env.
+const SG_KEY  = 'YOUR_SENDGRID_API_KEY';
+// ────────────────────────────────────────────────────────────────────────────
+
+let allLists   = [];
+let allSenders = [];
+
+async function sgFetch(path) {
+  const r = await fetch(SG_API + path, {
+    headers: { Authorization: 'Bearer ' + SG_KEY }
+  });
+  if (!r.ok) throw new Error('SendGrid ' + r.status + ': ' + path);
+  return r.json();
+}
+
+async function loadData() {
+  document.getElementById('loading-state').style.display = 'block';
+  document.getElementById('error-state').style.display   = 'none';
+  document.getElementById('form-card').style.display     = 'none';
+
+  try {
+    const [listsResp, sendersResp] = await Promise.all([
+      sgFetch('/marketing/lists?page_size=100'),
+      sgFetch('/marketing/senders')
+    ]);
+
+    allLists   = listsResp.result  || [];
+    allSenders = Array.isArray(sendersResp) ? sendersResp : (sendersResp.results || []);
+
+    populateLists();
+    populateSenders();
+
+    // Default send time: now + 10 minutes
+    const d = new Date(Date.now() + 10 * 60 * 1000);
+    d.setSeconds(0, 0);
+    document.getElementById('send_at').value =
+      d.toISOString().slice(0, 16);
+
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('form-card').style.display     = 'block';
+
+  } catch(e) {
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('error-state').style.display   = 'block';
+    document.getElementById('error-msg').textContent        = e.message;
+  }
+}
+
+function populateLists() {
+  const sel = document.getElementById('list_id');
+  sel.innerHTML = '';
+
+  if (allLists.length === 0) {
+    sel.innerHTML = '<option value="">אין רשימות</option>';
+    return;
+  }
+
+  // "All contacts" first
+  const allOpt = document.createElement('option');
+  allOpt.value = '__all__';
+  allOpt.textContent = 'כל אנשי הקשר (All Contacts)';
+  sel.appendChild(allOpt);
+
+  allLists.forEach(l => {
+    const o = document.createElement('option');
+    o.value = l.id;
+    o.textContent = l.name + (l.contact_count !== undefined ? ' (' + l.contact_count.toLocaleString('he-IL') + ')' : '');
+    sel.appendChild(o);
+  });
+
+  // Select first real list by default
+  if (allLists.length > 0) {
+    sel.value = allLists[0].id;
+    updateListHint();
+  }
+
+  sel.addEventListener('change', updateListHint);
+}
+
+function updateListHint() {
+  const sel = document.getElementById('list_id');
+  const hint = document.getElementById('list-count');
+  const chosen = allLists.find(l => l.id === sel.value);
+  hint.textContent = chosen && chosen.contact_count !== undefined
+    ? chosen.contact_count.toLocaleString('he-IL') + ' אנשי קשר ברשימה'
+    : '';
+}
+
+function populateSenders() {
+  const sel = document.getElementById('sender_id');
+  sel.innerHTML = '';
+
+  if (allSenders.length === 0) {
+    sel.innerHTML = '<option value="">אין שולחים מאומתים</option>';
+    return;
+  }
+
+  allSenders.forEach((s, i) => {
+    const o = document.createElement('option');
+    o.value = s.id;
+    o.textContent = (s.nickname || s.from?.name || 'שולח') + ' <' + (s.from?.email || '') + '>';
+    if (i === 0) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+
+  event.target.classList.add('active');
+  document.getElementById('pane-' + tab).classList.add('active');
+
+  if (tab === 'preview') {
+    const html  = document.getElementById('html_content').value.trim();
+    const plain = document.getElementById('plain_content').value.trim();
+    const box   = document.getElementById('preview-box');
+    if (html) {
+      box.innerHTML = html;
+    } else if (plain) {
+      box.innerHTML = plain.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+    } else {
+      box.textContent = 'כתוב תוכן בטאב "טקסט רגיל" או "HTML" כדי לראות תצוגה מקדימה';
+    }
+  }
+}
+
+async function createCampaign() {
+  const name    = document.getElementById('campaign_name').value.trim();
+  const subject = document.getElementById('subject').value.trim();
+  const list_id = document.getElementById('list_id').value;
+  const sender  = document.getElementById('sender_id').value;
+  const send_at_raw = document.getElementById('send_at').value;
+  const plain   = document.getElementById('plain_content').value.trim();
+  const html    = document.getElementById('html_content').value.trim();
+
+  if (!name || !subject || !send_at_raw || !plain) {
+    showStatus('נא למלא שם קמפיין, נושא, תוכן ומועד שליחה.', 'error');
+    return;
+  }
+  if (!sender) {
+    showStatus('לא נמצא שולח מאומת ב-SendGrid. הגדר שולח ב-Settings → Sender Authentication.', 'error');
+    return;
+  }
+
+  const send_at = new Date(send_at_raw).toISOString();
+
+  // Resolve list_ids
+  let list_ids;
+  if (list_id === '__all__' || !list_id) {
+    list_ids = allLists.map(l => l.id);
+  } else {
+    list_ids = [list_id];
+  }
+
+  const payload = {
+    campaign_name: name,
+    subject,
+    list_id: list_ids[0],        // primary for single send
+    all_list_ids: list_ids,
+    sender_id: parseInt(sender),
+    send_at,
+    plain_content: plain,
+    html_content: html || plain
+  };
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> שולח...';
+  showStatus('שולח ל-Make.com...', 'info');
+
+  try {
+    const res  = await fetch(WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const text = await res.text();
+    let data = {};
+    try { data = JSON.parse(text); } catch {}
+
+    if (res.ok && (data.success || res.status === 200)) {
+      const id  = data.single_send_id || '—';
+      const dt  = new Date(send_at).toLocaleString('he-IL', { dateStyle:'full', timeStyle:'short' });
+      showStatus(`✓ הקמפיין נוצר ותוזמן בהצלחה!\n\nמזהה: ${id}\nנושא: ${subject}\nשליחה: ${dt}`, 'success');
+    } else {
+      showStatus('שגיאה מ-Make.com: ' + (text || res.status), 'error');
+    }
+  } catch(e) {
+    showStatus('שגיאת רשת: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> צור ותזמן קמפיין';
+  }
+}
+
+function showStatus(msg, type) {
+  const el = document.getElementById('status-bar');
+  el.className = type;
+  el.style.display = 'block';
+  el.style.whiteSpace = 'pre-line';
+  el.textContent = msg;
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function clearForm() {
+  ['campaign_name','subject','plain_content','html_content'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('status-bar').style.display = 'none';
+
+  // Reset to first list
+  if (allLists.length > 0) {
+    document.getElementById('list_id').value = allLists[0].id;
+    updateListHint();
+  }
+  // Reset send time
+  const d = new Date(Date.now() + 10 * 60 * 1000);
+  d.setSeconds(0,0);
+  document.getElementById('send_at').value = d.toISOString().slice(0,16);
+
+  // Back to plain tab
+  document.querySelectorAll('.tab').forEach((b,i) => b.classList.toggle('active', i===0));
+  document.querySelectorAll('.tab-pane').forEach((p,i) => p.classList.toggle('active', i===0));
+}
+
+loadData();
+</script>
+</body>
+</html>
